@@ -134,7 +134,7 @@ cargo test --locked --all-targets --manifest-path libs/hbb_common/Cargo.toml
 
 ## CI
 
-Every reusable call is pinned to `NDDev-OpenNetwork/ci-workflows` by full SHA
+Every reusable call is pinned to `NDDev-Technocracy-OpenNetwork/ci-workflows` by full SHA
 and runs on GitHub-hosted runners. That is a rule, not a fallback: a public
 repository must never reach private self-hosted capacity, and public standard
 runners are unmetered.
