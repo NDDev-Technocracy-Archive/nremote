@@ -3,7 +3,7 @@
 Remote desktop that connects through a rendezvous server **you** run, not a
 vendor's cloud.
 
-The server is [nremote-server](https://github.com/NDDev-OpenNetwork/nremote-server).
+The server is [nremote-server](https://github.com/NDDev-Technocracy-OpenNetwork/nremote-server).
 This repository is the client: desktop and mobile, Rust and Flutter.
 
 ## What is different about this client
