@@ -2,25 +2,26 @@ schema_version: 1
 
 repository:
   id: "repo_01M1FQ9VB0FGZ4YBYFNHTBT8BB"
-  display_name: "nremote"
+  display_name: nremote
   roles:
     - "project"
-  lifecycle: "active"
-
+  lifecycle: archived
 provider:
   type: "github"
   installation: "installation:github-opennetwork"
   repository_id: 1354133494
-  owner: "NDDev-Technocracy-OpenNetwork"
-  name: "nremote"
+  owner: NDDev-Technocracy-Archive
+  name: nremote
 
   aliases:
+    - owner: NDDev-Technocracy-OpenNetwork
+      name: nremote
     - owner: "NDDev-OpenNetwork"
       name: "nremote"
 
 classification:
   portfolios:
-    - "portfolio:nddev-technocracy-opennetwork"
+    - "portfolio:nddev-technocracy-archive"
   visibility_contract: "public"
   data_classification: "public"
 
