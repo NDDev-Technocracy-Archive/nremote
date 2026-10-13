@@ -50,9 +50,8 @@ env:
   FLUTTER_VERSION: "3.24.5"
   FLUTTER_SHA256: "a7c82f551a9eae018e078f6bb186171e5a77920d35a3d75a61d9a593d0a9e4ae"
   FLUTTER_MACOS_ARM64_SHA256: "ca9624a6de7a1a8962f2f0a3e2a57b16434ca34f1137b8d9dc68c5ca1f187133"
-  # The NDK the Android build needs, and the version the ubuntu runner image
-  # already ships. r28c is 28.2.13676358; taking the one that is installed
-  # avoids a 722 MB download whose only published checksum is a SHA-1.
+  # Keep the tested r28c pin even when hosted runner images rotate their NDKs.
+  # The SDK manager installs this exact package only when it is absent.
   ANDROID_NDK_VERSION: "28.2.13676358"
   CARGO_EXPAND_VERSION: "1.0.95"
   FLUTTER_RUST_BRIDGE_VERSION: "1.80.1"
@@ -412,10 +411,11 @@ jobs:
         run: |
           set -euo pipefail
           ndk="${ANDROID_SDK_ROOT}/ndk/${ANDROID_NDK_VERSION}"
-          # The runner image ships this exact version. If it ever stops, this
-          # fails here with the list rather than three steps later with a
-          # linker error about a missing sysroot.
-          test -d "$ndk" || { echo "NDK ${ANDROID_NDK_VERSION} not on this image; available:" >&2; ls "${ANDROID_SDK_ROOT}/ndk" >&2; exit 1; }
+          if [ ! -f "$ndk/source.properties" ]; then
+            "${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager"               --sdk_root="$ANDROID_SDK_ROOT" --install "ndk;${ANDROID_NDK_VERSION}"
+          fi
+          grep -Eq "^Pkg.Revision[[:space:]]*=[[:space:]]*${ANDROID_NDK_VERSION//./\.}[[:space:]]*$"             "$ndk/source.properties"
+          test -d "$ndk/toolchains/llvm/prebuilt/linux-x86_64/sysroot"
           echo "ANDROID_NDK_HOME=$ndk" >> "${GITHUB_ENV}"
           echo "ANDROID_NDK_ROOT=$ndk" >> "${GITHUB_ENV}"
 
