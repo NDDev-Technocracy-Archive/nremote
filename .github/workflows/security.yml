@@ -46,7 +46,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: write # writes the review it produces
-    uses: NDDev-Technocracy-OpenNetwork/ci-workflows/.github/workflows/public-dependency-review.yml@93eeb2a65e98a29e9dbff7909f67c6419abff046 # commit:93eeb2a65e98a29e9dbff7909f67c6419abff046
+    uses: NDDev-Technocracy-OpenNetwork/ci-workflows/.github/workflows/public-dependency-review.yml@451e9170f3652c39d8387dc02c2fa02ba997cabb # commit:93eeb2a65e98a29e9dbff7909f67c6419abff046
     with:
       fail_on_severity: moderate
 
