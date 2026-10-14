@@ -97,7 +97,7 @@ jobs:
     name: shared-library
     permissions:
       contents: read
-    uses: NDDev-Technocracy-Archive/ci-workflows-20261014/.github/workflows/rust-ci.yml@93eeb2a65e98a29e9dbff7909f67c6419abff046 # commit:93eeb2a65e98a29e9dbff7909f67c6419abff046
+    uses: NDDev-Technocracy-Archive/ci-workflows-20261014/.github/workflows/rust-ci.yml@5d5094e983747d00d8a066c63be972ed86152b95 # commit:93eeb2a65e98a29e9dbff7909f67c6419abff046
     with:
       working_directory: libs/hbb_common
       test_matrix_os: '["ubuntu-latest", "macos-latest"]'
