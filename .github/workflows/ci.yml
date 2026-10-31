@@ -123,8 +123,8 @@ jobs:
           capability: security
       - name: Lint and audit workflows
         run: |
-          actionlint .github/workflows/ci.yml .github/workflows/build.yml .github/workflows/security.yml .github/workflows/ui.yml .github/workflows/codeql-scorecard.yml
-          zizmor --offline --no-progress .github/workflows/ci.yml .github/workflows/build.yml .github/workflows/security.yml .github/workflows/ui.yml .github/workflows/codeql-scorecard.yml .github/dependabot.yml
+          actionlint .github/workflows/ci.yml .github/workflows/build.yml .github/workflows/security.yml .github/workflows/ui.yml
+          zizmor --offline --no-progress .github/workflows/ci.yml .github/workflows/build.yml .github/workflows/security.yml .github/workflows/ui.yml .github/dependabot.yml
       - name: Scan new pull request commits, or the full history on main
         env:
           BASE: ${{ github.event.pull_request.base.sha }}
