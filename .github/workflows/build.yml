@@ -248,7 +248,9 @@ jobs:
 
   macos:
     name: macos arm64
-    runs-on: macos-14
+    # macOS 14 images retire on 2026-11-02 and fail during brownouts
+    # (actions/runner-images#13518); macos-15 is the nearest supported image.
+    runs-on: macos-15
     timeout-minutes: 180
     permissions:
       contents: read
