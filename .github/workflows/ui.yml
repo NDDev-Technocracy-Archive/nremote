@@ -29,7 +29,7 @@ permissions:
 
 concurrency:
   group: ui-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   # Pinned together and for one reason: the codegen writes Dart that has to
@@ -72,6 +72,8 @@ jobs:
       - name: Set up Rust toolchain
         uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f  # v2.0.0
         with:
+          # rust-cache inside this action saves by default; only main writes it.
+          cache-save-if: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
           toolchain: ${{ env.RUST_VERSION }}
           components: rustfmt
 

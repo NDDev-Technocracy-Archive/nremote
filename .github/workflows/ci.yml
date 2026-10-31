@@ -1,18 +1,7 @@
 name: ci
 
-# What this proves is narrower than "the app works", and saying so is the point.
-#
-# The application is Rust plus Flutter across three operating systems, and a
-# full build of it belongs in `build.yml`. This workflow proves the things that
-# are true of the source regardless of platform, and it proves them on every
-# pull request in under a few minutes: that the product identity has not
-# reverted, that the server configuration is still absent from a public
-# repository, that the wire protocol still matches the server's, and that the
-# shared library compiles clean.
-
 on:
   pull_request:
-    branches: [main]
   push:
     branches: [main]
   workflow_dispatch:
@@ -21,108 +10,129 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  # Obsolete pull-request heads are cancelled; a running main validation always completes.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   contracts:
     name: contracts
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       contents: read
     steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+    - name: Checkout
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        persist-credentials: false
+    - name: The product identity has not reverted
+      run: python3 scripts/brand.py --check
+    - name: No server configuration is committed
+      run: |
+        set -euo pipefail
+        python3 scripts/configure.py --check | tee /tmp/configured.txt
+        if ! grep -qx 'RENDEZVOUS_SERVERS = &\[\]' /tmp/configured.txt; then
+          echo "a rendezvous server is compiled into this repository" >&2
+          exit 1
+        fi
+        if ! grep -qx 'RS_PUB_KEY         = (empty)' /tmp/configured.txt; then
+          echo "a server public key is compiled into this repository" >&2
+          exit 1
+        fi
+    - name: The wire protocol still matches the server
+      run: python3 scripts/check_protocol_parity.py
+    - name: The commitlint exemption is not wider than stated
+      run: node scripts/check_commitlint_config.mjs
+    - name: The build and analysis toolchains agree
+      run: |
+        set -euo pipefail
+        for key in RUST_VERSION CARGO_EXPAND_VERSION FLUTTER_RUST_BRIDGE_VERSION; do
+          build=$(grep -E "^  ${key}: " .github/workflows/build.yml | head -1)
+          ui=$(grep -E "^  ${key}: " .github/workflows/ui.yml | head -1)
+          if [ -z "${build}" ] || [ -z "${ui}" ]; then
+            echo "${key} is missing from one of the two workflows" >&2
+            exit 1
+          fi
+          if [ "${build}" != "${ui}" ]; then
+            echo "${key} differs: build.yml has '${build}', ui.yml has '${ui}'" >&2
+            exit 1
+          fi
+        done
+        echo "build.yml and ui.yml agree on the pinned toolchain"
+  shared-library:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+    - name: Select the Rust toolchain
+      run: |
+        rustup toolchain install stable --profile minimal --component clippy,rustfmt
+        echo RUSTUP_TOOLCHAIN=stable >> "$GITHUB_ENV"
+    - uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/hosted-cache@ab62f45b2a3067e5a7425d703f7fd07f1618b72c # nddev-cicd-v0.6.14
+      with:
+        ecosystems: cargo
+    - name: Build
+      shell: bash
+      run: |
+        cargo build --locked --all-targets
+      working-directory: libs/hbb_common
+    - name: Test
+      shell: bash
+      run: |
+        cargo test --locked --all-targets
+      working-directory: libs/hbb_common
+  shared-library-platforms:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    if: ${{ github.event_name != 'pull_request' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+        - macos-26
+    defaults:
+      run:
+        shell: bash
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+    - name: Select the Rust toolchain
+      run: |
+        rustup toolchain install stable --profile minimal
+        echo RUSTUP_TOOLCHAIN=stable >> "$GITHUB_ENV"
+    - name: Test
+      shell: bash
+      run: |
+        cargo test --locked --all-targets
+      working-directory: libs/hbb_common
+
+  workflows:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-
-      # An upstream merge that reintroduces the prior name would otherwise land
-      # silently: nothing about it breaks a build. This is the gate that makes
-      # re-running the rename tool part of merging rather than something to
-      # remember.
-      - name: The product identity has not reverted
-        run: python3 scripts/brand.py --check
-
-      # The address of a private deployment must not be committed to a public
-      # repository. The constants are supposed to be empty here, and the build
-      # supplies them; a commit that fills them in is a leak, not a shortcut.
-      - name: No server configuration is committed
+          fetch-depth: 0
+      - uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/tools@ab62f45b2a3067e5a7425d703f7fd07f1618b72c # nddev-cicd-v0.6.14
+        with:
+          capability: security
+      - name: Lint and audit workflows
         run: |
-          set -euo pipefail
-          python3 scripts/configure.py --check | tee /tmp/configured.txt
-          if ! grep -qx 'RENDEZVOUS_SERVERS = &\[\]' /tmp/configured.txt; then
-            echo "a rendezvous server is compiled into this repository" >&2
-            exit 1
-          fi
-          if ! grep -qx 'RS_PUB_KEY         = (empty)' /tmp/configured.txt; then
-            echo "a server public key is compiled into this repository" >&2
-            exit 1
+          actionlint .github/workflows/ci.yml .github/workflows/build.yml .github/workflows/security.yml .github/workflows/ui.yml
+          zizmor --offline --no-progress .github/workflows/ci.yml .github/workflows/build.yml .github/workflows/security.yml .github/workflows/ui.yml .github/dependabot.yml
+      - name: Scan new pull request commits, or the full history on main
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [ -n "$BASE" ]; then
+            gitleaks git --no-banner --redact --log-opts="$BASE..$HEAD" .
+          else
+            gitleaks git --no-banner --redact .
           fi
 
-      # Checks this repository's copy against the pin, and the server's copy at
-      # its pinned release against the same pin. The second half is the one that
-      # catches a divergence introduced on the other side.
-      - name: The wire protocol still matches the server
-        run: python3 scripts/check_protocol_parity.py
-
-      # `ui.yml` analyses the generated Dart, `build.yml` ships the binary that
-      # Dart is generated from. When their toolchain pins drift, the analysis
-      # passes against a toolchain nothing releases, which is a green check
-      # that proves nothing about the artifact.
-      # The exemption in `commitlint.config.mjs` decides whether a dependency
-      # update can merge, and an exemption written one notch too wide reads
-      # exactly like a correct one. These controls are the difference.
-      - name: The commitlint exemption is not wider than stated
-        run: node scripts/check_commitlint_config.mjs
-
-      - name: The build and analysis toolchains agree
-        run: |
-          set -euo pipefail
-          for key in RUST_VERSION CARGO_EXPAND_VERSION FLUTTER_RUST_BRIDGE_VERSION; do
-            build=$(grep -E "^  ${key}: " .github/workflows/build.yml | head -1)
-            ui=$(grep -E "^  ${key}: " .github/workflows/ui.yml | head -1)
-            if [ -z "${build}" ] || [ -z "${ui}" ]; then
-              echo "${key} is missing from one of the two workflows" >&2
-              exit 1
-            fi
-            if [ "${build}" != "${ui}" ]; then
-              echo "${key} differs: build.yml has '${build}', ui.yml has '${ui}'" >&2
-              exit 1
-            fi
-          done
-          echo "build.yml and ui.yml agree on the pinned toolchain"
-
-  shared-library:
-    name: shared-library
-    permissions:
-      contents: read
-    uses: NDDev-Technocracy-Archive/ci-workflows-20261014/.github/workflows/rust-ci.yml@93eeb2a65e98a29e9dbff7909f67c6419abff046 # commit:93eeb2a65e98a29e9dbff7909f67c6419abff046
-    with:
-      working_directory: libs/hbb_common
-      test_matrix_os: '["ubuntu-latest", "macos-latest"]'
-      build_command: 'cargo build --locked --all-targets'
-      test_command: 'cargo test --locked --all-targets'
-      clippy_command: ''
-      fmt_command: ''
-
-  actionlint:
-    name: actionlint
-    permissions:
-      contents: read
-    uses: NDDev-Technocracy-Archive/ci-workflows-20261014/.github/workflows/actionlint.yml@93eeb2a65e98a29e9dbff7909f67c6419abff046 # commit:93eeb2a65e98a29e9dbff7909f67c6419abff046
-
-  pr-hygiene:
-    name: pr-hygiene
-    if: github.event_name == 'pull_request'
-    permissions:
-      contents: read
-      issues: write # the stale bot closes threads
-      pull-requests: write # the labeler applies labels
-    uses: NDDev-Technocracy-Archive/ci-workflows-20261014/.github/workflows/pr-hygiene.yml@93eeb2a65e98a29e9dbff7909f67c6419abff046 # commit:93eeb2a65e98a29e9dbff7909f67c6419abff046
-    with:
-      # The stock configuration rejects any body line over 100 characters, and
-      # Dependabot writes a 144-character compare link into every git-ref bump.
-      # `commitlint.config.mjs` keeps the limit and exempts only lines that no
-      # amount of wrapping could shorten; the file itself carries the argument.
-      commitlint_config: commitlint.config.mjs
