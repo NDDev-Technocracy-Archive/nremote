@@ -105,6 +105,8 @@ jobs:
       - name: Set up Rust toolchain
         uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f  # v2.0.0
         with:
+          # rust-cache inside this action saves by default; only main writes it.
+          cache-save-if: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
           toolchain: ${{ env.RUST_VERSION }}
           components: rustfmt
           # The action defaults CARGO_BUILD_WARNINGS to `deny`, which is right
@@ -144,7 +146,8 @@ jobs:
       # every byte vcpkg produces. A hit turns tens of minutes of ffmpeg into a
       # copy; a miss rebuilds and repopulates.
       - name: Restore the vcpkg binary cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        id: vcpkg-x64_linux
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
         with:
           path: ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
           key: vcpkg-x64-linux-${{ env.VCPKG_COMMIT_ID }}-${{ hashFiles('vcpkg.json', 'res/vcpkg/**', 'res/vcpkg-triplets/**') }}
@@ -171,6 +174,15 @@ jobs:
             done
             exit 1
           fi
+
+      # Saved as soon as the ports are built, and only from main: a pull request
+      # restores main's binaries and never writes an entry of its own.
+      - name: Save the vcpkg binary cache from main
+        if: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && steps.vcpkg-x64_linux.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
+          key: ${{ steps.vcpkg-x64_linux.outputs.cache-primary-key }}
 
       - name: Install the bridge codegen
         run: |
@@ -270,6 +282,8 @@ jobs:
       - name: Set up Rust toolchain
         uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f  # v2.0.0
         with:
+          # rust-cache inside this action saves by default; only main writes it.
+          cache-save-if: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
           toolchain: ${{ env.RUST_VERSION }}
           components: rustfmt
           # Same reason as the Linux job: this builds, it does not lint.
@@ -306,7 +320,8 @@ jobs:
           flutter --version
 
       - name: Restore the vcpkg binary cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        id: vcpkg-arm64_osx
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
         with:
           path: ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
           key: vcpkg-arm64-osx-${{ env.VCPKG_COMMIT_ID }}-${{ hashFiles('vcpkg.json', 'res/vcpkg/**', 'res/vcpkg-triplets/**') }}
@@ -328,6 +343,15 @@ jobs:
             done
             exit 1
           fi
+
+      # Saved as soon as the ports are built, and only from main: a pull request
+      # restores main's binaries and never writes an entry of its own.
+      - name: Save the vcpkg binary cache from main
+        if: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && steps.vcpkg-arm64_osx.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
+          key: ${{ steps.vcpkg-arm64_osx.outputs.cache-primary-key }}
 
       - name: Install the bridge codegen
         run: |
@@ -422,6 +446,8 @@ jobs:
       - name: Set up Rust toolchain
         uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f  # v2.0.0
         with:
+          # rust-cache inside this action saves by default; only main writes it.
+          cache-save-if: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
           toolchain: ${{ env.RUST_VERSION }}
           target: aarch64-linux-android
           components: rustfmt
@@ -445,7 +471,8 @@ jobs:
           git apply "${GITHUB_WORKSPACE}/.github/patches/flutter_3.24.4_dropdown_menu_enableFilter.diff"
 
       - name: Restore the vcpkg binary cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        id: vcpkg-arm64_android
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
         with:
           path: ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
           key: vcpkg-arm64-android-${{ env.VCPKG_COMMIT_ID }}-${{ hashFiles('vcpkg.json', 'res/vcpkg/**', 'res/vcpkg-triplets/**') }}
@@ -469,6 +496,15 @@ jobs:
             done
             exit 1
           fi
+
+      # Saved as soon as the ports are built, and only from main: a pull request
+      # restores main's binaries and never writes an entry of its own.
+      - name: Save the vcpkg binary cache from main
+        if: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && steps.vcpkg-arm64_android.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
+          key: ${{ steps.vcpkg-arm64_android.outputs.cache-primary-key }}
 
       - name: Install the bridge codegen
         run: |
