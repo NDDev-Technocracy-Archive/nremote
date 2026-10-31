@@ -33,7 +33,7 @@ permissions:
 
 concurrency:
   group: build-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   # Upstream pins 1.75 because the sciter binding stops working on the i128 ABI
