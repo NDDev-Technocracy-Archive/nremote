@@ -64,6 +64,12 @@ env:
 jobs:
   linux:
     name: linux x86_64
+    # Kept on 22.04 for the glibc floor, not by default. The desktop binary
+    # links against the build host's glibc, and the stock package declares
+    # no libc6 floor while its Depends still accept the pre-t64 names of
+    # Ubuntu 22.04 and Debian 12. Built on a newer image, the package would
+    # install there and then fail to start. 22.04 leaves hosted runners on
+    # 2027-04-17; moving on needs an older base inside a container.
     runs-on: ubuntu-22.04
     timeout-minutes: 180
     permissions:
@@ -404,7 +410,7 @@ jobs:
 
   android:
     name: android arm64
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 180
     permissions:
       contents: read
