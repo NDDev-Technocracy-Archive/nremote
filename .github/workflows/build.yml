@@ -64,6 +64,12 @@ env:
 jobs:
   linux:
     name: linux x86_64
+    # Kept on 22.04 for the glibc floor, not by default. The desktop binary
+    # links against the build host's glibc, and the stock package declares
+    # no libc6 floor while its Depends still accept the pre-t64 names of
+    # Ubuntu 22.04 and Debian 12. Built on a newer image, the package would
+    # install there and then fail to start. 22.04 leaves hosted runners on
+    # 2027-04-17; moving on needs an older base inside a container.
     runs-on: ubuntu-22.04
     timeout-minutes: 180
     permissions:
@@ -404,7 +410,7 @@ jobs:
 
   android:
     name: android arm64
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 180
     permissions:
       contents: read
@@ -529,6 +535,12 @@ jobs:
       - name: Build the native library
         run: |
           set -euo pipefail
+          # cargo-ndk 3.1.2 points the C compiler at the NDK but not bindgen,
+          # which otherwise parses the runner's own glibc headers for an
+          # Android target. Newer glibc headers declare __float128, which
+          # clang rejects for aarch64-linux-android. Bindings for Android
+          # belong to the NDK's bionic sysroot.
+          export BINDGEN_EXTRA_CLANG_ARGS_aarch64_linux_android="--sysroot=${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/sysroot"
           ./flutter/ndk_arm64.sh
           mkdir -p ./flutter/android/app/src/main/jniLibs/arm64-v8a
           cp ./target/aarch64-linux-android/release/liblibnremote.so \
