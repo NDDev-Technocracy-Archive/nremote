@@ -63,14 +63,21 @@ is you.
 ## Building
 
 ```bash
-python3 scripts/brand.py --check            # the identity has not reverted
-python3 scripts/check_protocol_parity.py    # the wire protocol matches the server
-cargo build --locked --manifest-path libs/hbb_common/Cargo.toml
+just check            # source/contracts/workflows/history; offline, no build
+just check-protocol   # local and live pinned server protocol
+just test             # locked shared-library build and every existing target
+just build            # existing desktop build.py/Flutter packaging
+just analyze-ui       # the existing Flutter errors gate
+just build-android    # existing Android ARM native library and debug-signed APK
 ```
 
 The full application build needs a Flutter SDK, vcpkg and a long list of system
-libraries; see `.github/workflows/`. The shared library builds on its own and is
-what CI checks on every pull request.
+libraries; see `.github/workflows/` for each platform's preparation. Run native
+commands on a prepared executor. The shared library builds on its own. CI keeps
+the source, live peer protocol, shared-library, Flutter analysis and all three
+platform builds as separate producers. `just verify` runs the complete desktop
+sequence after its SDKs, bridge generator, vcpkg and system libraries are ready.
+All public CI runs use standard GitHub-hosted runners.
 
 ### x11-required
 

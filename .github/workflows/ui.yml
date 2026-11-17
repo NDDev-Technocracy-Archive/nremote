@@ -28,7 +28,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ui-${{ github.workflow }}-${{ github.ref }}
+  group: ui-${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
@@ -53,15 +53,18 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - name: Prepare the public CI job
+        id: setup
+        uses: NDDev-Technocracy-OpenNetwork/nddev-ci/actions/prepare@98ff340ab5d2e0f62821a6ee25fd4161b87f59ba # v0.6.69
         with:
-          persist-credentials: false
+          managed: 'false'
+          fetch-depth: 1
 
       # The codegen expands macros, so it needs a compiler and the headers the
       # crate's build scripts reach for. This is the bridge's dependency list,
       # not the application's: no vcpkg, no media codecs.
       - name: Install prerequisites
+        id: command-1
         run: |
           set -euo pipefail
           sudo apt-get update -y
@@ -88,6 +91,7 @@ jobs:
       # unpinned download into a build is a supply-chain hole, and a checksum
       # is what closes it.
       - name: Install Flutter
+        id: command-2
         env:
           FLUTTER_SHA256: 'a7c82f551a9eae018e078f6bb186171e5a77920d35a3d75a61d9a593d0a9e4ae'
         run: |
@@ -102,12 +106,14 @@ jobs:
           git config --global --add safe.directory "${HOME}/flutter"
 
       - name: Report the toolchain
+        id: command-3
         run: |
           set -euo pipefail
           flutter --version
           dart --version
 
       - name: Install the bridge codegen
+        id: command-4
         run: |
           set -euo pipefail
           cargo install cargo-expand --version "${CARGO_EXPAND_VERSION}" --locked
@@ -115,22 +121,12 @@ jobs:
             --version "${FLUTTER_RUST_BRIDGE_VERSION}" --features uuid --locked
 
       - name: Resolve Dart packages
-        run: |
-          set -euo pipefail
-          # No pubspec surgery. Upstream downgrades extended_text here because its
-          # bridge job runs on Dart 3.4; on 3.24.5's Dart 3.5 the declared
-          # version resolves, and editing a manifest to make a check pass is how
-          # a check stops describing what ships.
-          cd flutter && flutter pub get
+        id: command-5
+        run: just resolve-ui
 
       - name: Generate the Rust-to-Dart bridge
-        run: |
-          set -euo pipefail
-          flutter_rust_bridge_codegen \
-            --rust-input ./src/flutter_ffi.rs \
-            --dart-output ./flutter/lib/generated_bridge.dart \
-            --c-output ./flutter/macos/Runner/bridge_generated.h
-          test -s ./flutter/lib/generated_bridge.dart
+        id: command-6
+        run: just generate-bridge
 
       # Errors fail the job; warnings and lints do not, yet. The tree has never
       # been analysed, so the count is unknown and a first run that fails on
@@ -138,5 +134,15 @@ jobs:
       # that means the code does not compile, and that subset is enforced from
       # the first run.
       - name: Analyze
-        working-directory: flutter
-        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+        id: project
+        run: just analyze-ui
+
+      - name: Complete the public CI job
+        if: always()
+        uses: NDDev-Technocracy-OpenNetwork/nddev-ci/actions/complete@98ff340ab5d2e0f62821a6ee25fd4161b87f59ba # v0.6.69
+        with:
+          status: ${{ job.status }}
+          project-outcome: ${{ steps.setup.outcome == 'success' && contains(steps.*.outcome, 'failure') && 'failure' || steps.project.outcome }}
+          task: ui-analysis
+          name: ui-analysis
+          read-token: ${{ steps.setup.outputs.read-token }}
