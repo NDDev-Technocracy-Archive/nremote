@@ -126,20 +126,27 @@ copy at the coordinated migration point. It preserves 64-byte
 ## Verification
 
 ```bash
-python3 scripts/brand.py --check
-python3 scripts/configure.py --check
-python3 scripts/check_protocol_parity.py
-cargo test --locked --all-targets --manifest-path libs/hbb_common/Cargo.toml
+just check
+just check-protocol
+just test
 ```
 
 ## CI
 
-Every reusable call is pinned to `NDDev-Technocracy-OpenNetwork/ci-workflows` by full SHA
-and runs on GitHub-hosted runners. That is a rule, not a fallback: a public
+The shared preparation/completion and merge stops are pinned coherently to
+`NDDev-Technocracy-OpenNetwork/nddev-ci` by full SHA. The project's Just commands
+own its checks, builds and existing native/UI policy. Every producer runs on
+GitHub-hosted runners. That is a rule, not a fallback: a public
 repository must never reach private self-hosted capacity, and public standard
 runners are unmetered.
 
-The Rust toolchain is pinned to 1.98 in `build.yml`, and `ui.yml` must declare
+`just check` is offline; `just check-protocol` retains the live pinned server
+half and remains mandatory in CI/full verification. Neither runs a remote client.
+The shared-library CI retains its existing `stable` Rust selection separately
+from the coupled Flutter application SDKs; normal dependency updates own changes
+to these compiler roles.
+
+The application Rust toolchain is pinned to 1.98 in `build.yml`, and `ui.yml` must declare
 the same version — the `contracts` job fails when the two drift, because an
 analysis run against a toolchain nothing releases is a green check that proves
 nothing. This diverges from upstream deliberately. Upstream pins 1.75 because

@@ -58,6 +58,13 @@ Modified by NDDev beginning 2026-09-02. Changes so far:
     their existing byte layouts, verified against the RFC 8032 Ed25519 test
     vector; malformed stored keypairs are rejected before use.
 
+  * CI source, shared-library, Flutter analysis and existing native build commands
+    are exposed through Just and the shared CI job lifecycle. Platform floors,
+    wire/signing compatibility, SDK selections and artifact/signing policy are
+    retained, and the complete history is scanned. Scorecard still scans and
+    uploads SARIF,
+    with outside result publication disabled.
+
 The rendezvous protocol is unchanged. This client interoperates with servers
 built from the prior work, and nremote-server interoperates with clients built
 from it, which is what makes an incremental migration possible.

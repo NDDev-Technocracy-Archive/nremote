@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: security-${{ github.event.pull_request.number || github.ref }}
+  group: security-${{ github.event.pull_request.number || github.run_id }}
   # Obsolete pull-request heads are cancelled; a running main validation always completes.
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
@@ -54,7 +54,7 @@ jobs:
         with:
           results_file: results.sarif
           results_format: sarif
-          publish_results: true
+          publish_results: false
       - uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
         with:
           sarif_file: results.sarif
